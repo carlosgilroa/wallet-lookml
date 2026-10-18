@@ -183,11 +183,13 @@ All 8 LookML files parsed and validated successfully!
 
 ---
 
-## 6. Technical Interview Demonstration Guide
+## 6. Architecture & Data Governance Walkthrough
 
-When presenting this project during a Senior Data/AI Engineer technical screening:
+This semantic layer adheres to enterprise data engineering and analytics engineering standards:
 
-1. **Walk Through the Architecture**: Explain how raw bank alerts (IMAP) and BudgetBakers API data land in BigQuery as a Medallion Lakehouse, and why LookML was chosen to govern the semantic layer.
-2. **Demonstrate Symmetric Aggregates**: Open `models/wallet_analytics.model.lkml` and explain how `relationship: many_to_one` prevents fanout multiplication when querying multi-currency transactions across accounts.
-3. **Explain Caching & Performance**: Highlight `wallet_daily_datagroup` and the Persistent Derived Table (`pdt_monthly_cashflow`), explaining how caching offloads heavy computation from BigQuery.
-4. **Highlight CI/CD Rigor**: Show the automated GitHub Actions workflow and `scripts/validate_lookml.py` running automated syntax and primary-key checks on every git push.
+1. **Decoupled Medallion Architecture**: The semantic model operates directly over BigQuery Silver and Gold layers, providing centralized governance across multi-currency financial records without modifying upstream ingestion pipelines.
+2. **Symmetric Aggregates & Join Safety**: By enforcing primary keys (`transaction_id`, `account_id`, `category_id`) and declaring explicit join relationships (`relationship: many_to_one`), the model guarantees mathematically accurate metrics regardless of query dimensionality or join depth.
+3. **Cost Optimization & Caching with PDTs**: High-frequency dashboard queries target `pdt_monthly_cashflow`, which is materialized and automatically invalidated via `wallet_daily_datagroup` only when new data lands in the warehouse, minimizing BigQuery compute spend.
+4. **Automated CI/CD Quality Gates**: Every pull request and push to `main` triggers automated syntax, reference, and primary-key validation via GitHub Actions and Python AST parsing (`scripts/validate_lookml.py`), guaranteeing zero broken references in production.
+5. **Unified Business Logic**: Critical metric logic—such as Two-Tier Accounting classifications, net cash flow, and TRM exchange rate conversions—is codified once in LookML, ensuring complete metric consistency across all downstream consumers and self-service analytics.
+
