@@ -1,11 +1,11 @@
 # Wallet LookML — Enterprise Semantic Modeling Layer
 
-[![LookML Validation](https://github.com/quiquecg/wallet-lookml/actions/workflows/lookml_lint.yml/badge.svg)](https://github.com/quiquecg/wallet-lookml/actions)
+[![LookML Validation](https://github.com/carlosgilroa/wallet-lookml/actions/workflows/lookml_lint.yml/badge.svg)](https://github.com/carlosgilroa/wallet-lookml/actions)
 [![LookML Engine](https://img.shields.io/badge/Language-LookML-blue.svg)](https://cloud.google.com/looker/docs/what-is-lookml)
 [![Warehouse](https://img.shields.io/badge/Warehouse-Google_BigQuery-669DF6.svg)](https://cloud.google.com/bigquery)
 [![Architecture](https://img.shields.io/badge/Pattern-Medallion_Lakehouse-orange.svg)](https://en.wikipedia.org/wiki/Databricks#Medallion_architecture)
 
-A production-grade, Git-versioned **LookML semantic modeling repository** for the [Wallet Personal Finance Automation Lake](https://github.com/quiquecg/wallet). This project bridges a multi-currency Medallion data lake on **Google Cloud BigQuery** with enterprise-grade metric governance, Persistent Derived Tables (PDTs), and symmetric aggregate explorations.
+A production-grade, Git-versioned **LookML semantic modeling repository** for the [Wallet Personal Finance Automation Lake](https://github.com/carlosgilroa/wallet). This project bridges a multi-currency Medallion data lake on **Google Cloud BigQuery** with enterprise-grade metric governance, Persistent Derived Tables (PDTs), and symmetric aggregate explorations.
 
 ---
 
