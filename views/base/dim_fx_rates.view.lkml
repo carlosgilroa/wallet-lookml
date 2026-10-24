@@ -1,43 +1,67 @@
 view: dim_fx_rates {
-  sql_table_name: `@{schema_name}.dim_fx_rates` ;;
+  sql_table_name: `@{schema_name}.fx_rates` ;;
 
-  dimension: fx_rate_id {
+  dimension: date {
     primary_key: yes
     type: string
-    hidden: yes
-    sql: CONCAT(CAST(${TABLE}.fx_date AS STRING), '_', ${TABLE}.base_currency, '_', ${TABLE}.target_currency) ;;
+    description: "Exchange rate calendar date (YYYY-MM-DD)"
+    sql: ${TABLE}.date ;;
   }
 
   dimension_group: fx {
     type: time
     timeframes: [raw, date, week, month, quarter, year]
     datatype: date
-    sql: ${TABLE}.fx_date ;;
+    description: "Daily exchange rate timestamp"
+    sql: CAST(${TABLE}.date AS DATE) ;;
   }
 
-  dimension: base_currency {
-    type: string
-    description: "Source currency (e.g. COP, EUR, USD)"
-    sql: ${TABLE}.base_currency ;;
-  }
-
-  dimension: target_currency {
-    type: string
-    description: "Target normalized currency (typically USD or COP)"
-    sql: ${TABLE}.target_currency ;;
-  }
-
-  dimension: exchange_rate {
+  dimension: usd_cop {
     type: number
-    description: "Daily official exchange rate (TRM from Banco de la República API)"
-    sql: ${TABLE}.rate ;;
+    description: "Daily USD to COP exchange rate (TRM from Banco de la República)"
+    sql: ${TABLE}.usd_cop ;;
+    value_format_name: decimal_2
+  }
+
+  dimension: eur_usd {
+    type: number
+    description: "Daily EUR to USD cross exchange rate"
+    sql: ${TABLE}.eur_usd ;;
     value_format_name: decimal_4
   }
 
-  measure: average_exchange_rate {
-    type: average
-    description: "Average exchange rate across the selected timeframe"
-    sql: ${exchange_rate} ;;
+  dimension: eur_cop {
+    type: number
+    description: "Daily EUR to COP exchange rate"
+    sql: ${TABLE}.eur_cop ;;
+    value_format_name: decimal_2
+  }
+
+  dimension: gbp_usd {
+    type: number
+    description: "Daily GBP to USD cross exchange rate"
+    sql: ${TABLE}.gbp_usd ;;
     value_format_name: decimal_4
+  }
+
+  dimension: gbp_cop {
+    type: number
+    description: "Daily GBP to COP exchange rate"
+    sql: ${TABLE}.gbp_cop ;;
+    value_format_name: decimal_2
+  }
+
+  measure: average_usd_cop_rate {
+    type: average
+    description: "Average USD to COP TRM exchange rate across the selected timeframe"
+    sql: ${usd_cop} ;;
+    value_format_name: decimal_2
+  }
+
+  measure: average_eur_cop_rate {
+    type: average
+    description: "Average EUR to COP exchange rate across the selected timeframe"
+    sql: ${eur_cop} ;;
+    value_format_name: decimal_2
   }
 }

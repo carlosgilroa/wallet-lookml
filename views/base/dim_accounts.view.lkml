@@ -4,30 +4,24 @@ view: dim_accounts {
   dimension: account_id {
     primary_key: yes
     type: string
-    description: "Unique surrogate key for the financial account"
+    description: "Unique surrogate key for the financial account from BudgetBakers"
     sql: ${TABLE}.account_id ;;
   }
 
   dimension: account_name {
     type: string
-    description: "Descriptive name of the account (e.g. Bancolombia Checking, Nu Savings)"
+    description: "Descriptive name of the account (e.g. Bancolombia, Nu, Ahorro)"
     sql: ${TABLE}.account_name ;;
-    drill_fields: [account_id, institution, account_type]
+    drill_fields: [account_id, account_type, currency]
   }
 
   dimension: account_type {
     type: string
-    description: "Asset or liability classification: Checking, Savings, Credit Card, Investment"
+    description: "Account classification from BudgetBakers (e.g. General, SavingAccount, CreditCard, Loan)"
     sql: ${TABLE}.account_type ;;
   }
 
-  dimension: institution {
-    type: string
-    description: "Financial institution (Bancolombia, Nu Bank, Davivienda, Nequi, RappiCard)"
-    sql: ${TABLE}.institution ;;
-  }
-
-  dimension: default_currency {
+  dimension: currency {
     type: string
     description: "Base currency of the account (COP, EUR, USD)"
     sql: ${TABLE}.currency ;;
@@ -35,13 +29,102 @@ view: dim_accounts {
 
   dimension: is_active {
     type: yesno
-    description: "Whether the account is currently open and active"
+    description: "Whether the account is currently open and active (not archived)"
     sql: ${TABLE}.is_active ;;
+  }
+
+  dimension: archived {
+    type: yesno
+    description: "Whether the account has been archived"
+    sql: ${TABLE}.archived ;;
+  }
+
+  dimension: exclude_from_stats {
+    type: yesno
+    description: "Whether the account is excluded from aggregate statistics"
+    sql: ${TABLE}.exclude_from_stats ;;
+  }
+
+  dimension: is_bank_sync {
+    type: yesno
+    description: "Whether the account is automatically synchronized with a bank"
+    sql: ${TABLE}.is_bank_sync ;;
+  }
+
+  dimension: is_investment_account {
+    type: yesno
+    description: "Whether the account is an investment portfolio or asset account"
+    sql: ${TABLE}.is_investment_account ;;
+  }
+
+  dimension: current_balance {
+    type: number
+    description: "Current balance of the account in its native currency"
+    sql: ${TABLE}.current_balance ;;
+    value_format_name: decimal_2
+  }
+
+  dimension: credit_limit {
+    type: number
+    description: "Total credit limit for credit card accounts"
+    sql: ${TABLE}.credit_limit ;;
+    value_format_name: decimal_2
+  }
+
+  dimension: available_credit {
+    type: number
+    description: "Remaining available credit on credit card accounts"
+    sql: ${TABLE}.available_credit ;;
+    value_format_name: decimal_2
+  }
+
+  dimension: credit_balance {
+    type: number
+    description: "Current utilized credit balance on credit card accounts"
+    sql: ${TABLE}.credit_balance ;;
+    value_format_name: decimal_2
+  }
+
+  dimension: record_count {
+    type: number
+    description: "Total number of historical transactions recorded in this account"
+    sql: ${TABLE}.record_count ;;
   }
 
   measure: count {
     type: count
-    description: "Total number of managed financial accounts"
-    drill_fields: [account_id, account_name, institution, account_type]
+    description: "Total number of financial accounts (including archived)"
+    drill_fields: [account_id, account_name, account_type, currency, is_active, current_balance]
+  }
+
+  measure: active_accounts_count {
+    type: count
+    description: "Total number of currently active (non-archived) financial accounts"
+    filters: [is_active: "yes"]
+    drill_fields: [account_id, account_name, account_type, currency, current_balance]
+  }
+
+  measure: total_current_balance {
+    type: sum
+    description: "Sum of current balances across active accounts"
+    sql: ${current_balance} ;;
+    filters: [is_active: "yes"]
+    value_format_name: decimal_2
+  }
+
+  measure: total_credit_limit {
+    type: sum
+    description: "Total credit limit across active credit cards"
+    sql: ${credit_limit} ;;
+    filters: [is_active: "yes"]
+    value_format_name: decimal_2
+  }
+
+  measure: total_available_credit {
+    type: sum
+    description: "Total available credit remaining across active credit cards"
+    sql: ${available_credit} ;;
+    filters: [is_active: "yes"]
+    value_format_name: decimal_2
   }
 }
