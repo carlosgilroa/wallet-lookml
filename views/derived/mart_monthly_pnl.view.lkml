@@ -1,5 +1,6 @@
 view: mart_monthly_pnl {
   sql_table_name: `@{schema_name}.mart_monthly_pnl` ;;
+  description: "Pre-aggregated monthly P&L financial mart with net cashflow and savings rate. Grain: 1 row per calendar month (year_month)."
 
   dimension: year_month {
     primary_key: yes

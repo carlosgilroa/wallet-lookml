@@ -1,5 +1,6 @@
 view: dim_fx_rates {
   sql_table_name: `@{schema_name}.fx_rates` ;;
+  description: "Daily foreign exchange conversion rates (USD, EUR, COP, GBP). Grain: 1 row per calendar day (date)."
 
   dimension: date {
     primary_key: yes

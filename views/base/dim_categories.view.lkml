@@ -1,5 +1,6 @@
 view: dim_categories {
   sql_table_name: `@{schema_name}.dim_categories` ;;
+  description: "Conformed spend and income categories dimension with parent hierarchy and cardinality. Grain: 1 row per category (category_id)."
 
   dimension: category_id {
     primary_key: yes

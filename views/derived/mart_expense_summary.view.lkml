@@ -1,12 +1,13 @@
 view: mart_expense_summary {
   sql_table_name: `@{schema_name}.mart_expense_summary` ;;
+  description: "Monthly expense summary segmented by accounting tier, category, merchant, and labels. Grain: 1 row per year_month + tier_group + category_name + merchant + labels."
 
-  dimension: summary_key {
+  dimension: expense_summary_pk {
     primary_key: yes
     type: string
     hidden: yes
-    description: "Composite primary key for monthly expense summary row"
-    sql: CONCAT(${TABLE}.year_month, '_', COALESCE(${TABLE}.category_name, ''), '_', COALESCE(${TABLE}.merchant, '')) ;;
+    description: "Compound primary key: year_month + tier_group + category_name + merchant + labels"
+    sql: CONCAT(${TABLE}.year_month, '_', ${TABLE}.tier_group, '_', ${TABLE}.category_name, '_', COALESCE(${TABLE}.merchant, 'none'), '_', COALESCE(${TABLE}.labels, 'none')) ;;
   }
 
   dimension: month_date {

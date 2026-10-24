@@ -1,5 +1,6 @@
 view: dim_accounts {
   sql_table_name: `@{schema_name}.dim_accounts` ;;
+  description: "Conformed financial accounts dimension from BudgetBakers. Grain: 1 row per financial account (account_id)."
 
   dimension: account_id {
     primary_key: yes

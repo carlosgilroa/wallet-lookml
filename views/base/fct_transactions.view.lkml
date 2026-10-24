@@ -1,5 +1,6 @@
 view: fct_transactions {
   sql_table_name: `@{schema_name}.master_records` ;;
+  description: "Master multi-currency transaction ledger (master_records). Grain: 1 row per financial transaction event (id)."
 
   # ---------------- KEYS ----------------
 

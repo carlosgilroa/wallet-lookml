@@ -1,4 +1,5 @@
 view: pdt_category_mom_velocity {
+  description: "LookML Persistent Derived Table (PDT) tracking monthly category spend acceleration and 3-month rolling averages. Grain: 1 row per year_month + category_id."
   derived_table: {
     sql:
       WITH monthly_category_spend AS (

@@ -1,5 +1,6 @@
 view: dim_labels {
   sql_table_name: `@{schema_name}.dim_labels` ;;
+  description: "Conformed transaction tags and labels dimension with cumulative cashflows. Grain: 1 row per label tag (label_id)."
 
   dimension: label_id {
     primary_key: yes
