@@ -195,8 +195,16 @@ def main() -> int:
     pnl_spend = by_month(conn, pnl, "total_spend_cop", "year_month")
     check("mart_expense_summary.total_spend_cop = mart_monthly_pnl.total_spend_cop",
           by_month(conn, summary, "total_spend_cop", "year_month"), pnl_spend)
-    check("pdt_category_mom_velocity.total_monthly_spend_cop = mart_monthly_pnl.total_spend_cop",
-          by_month(conn, velocity, "total_monthly_spend_cop", "year_month"), pnl_spend)
+    # The velocity PDT leaves out refunds booked in income categories (they have no spending category)
+    unattributed_refunds = dict(conn.execute("""
+        SELECT SUBSTR(CAST(t.date AS STRING), 1, 7), SUM(t.amount)
+        FROM master_records t JOIN dim_categories c ON t.category_id = c.category_id
+        WHERE t.is_transfer = FALSE AND t.nature = 'tier2_refund_offset' AND c.category_group = 'Income'
+        GROUP BY 1
+    """).fetchall())
+    check("pdt_category_mom_velocity.total_monthly_spend_cop = mart_monthly_pnl.total_spend_cop + unattributed refunds",
+          by_month(conn, velocity, "total_monthly_spend_cop", "year_month"),
+          {k: v + unattributed_refunds.get(k, 0.0) for k, v in pnl_spend.items()})
     check("mart_category_budget.total_spend_cop = mart_monthly_pnl.total_operational_expenses",
           by_month(conn, budget, "total_spend_cop", "year_month"),
           by_month(conn, pnl, "total_operational_expenses", "year_month"))

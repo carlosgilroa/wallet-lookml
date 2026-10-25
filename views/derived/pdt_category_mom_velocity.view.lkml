@@ -1,5 +1,5 @@
 view: pdt_category_mom_velocity {
-  description: "Persistent Derived Table tracking monthly category spend (net of refunds), month-over-month change and 3-month rolling averages. Grain: 1 row per year_month + category_id, with a row for every calendar month from the category's first spend onwards (0 when nothing was spent). All amounts in COP."
+  description: "Persistent Derived Table tracking monthly category spend (net of refunds booked in that category; refunds in the generic income 'Refunds' category are excluded), month-over-month change and 3-month rolling averages. Grain: 1 row per year_month + category_id, with a row for every calendar month from the category's first spend onwards (0 when nothing was spent). All amounts in COP."
   derived_table: {
     sql:
       WITH category_spend AS (
@@ -9,8 +9,13 @@ view: pdt_category_mom_velocity {
           COUNT(CASE WHEN t.nature <> 'tier2_refund_offset' THEN 1 END) AS transaction_count,
           SUM(CASE WHEN t.nature = 'tier2_refund_offset' THEN -t.amount ELSE ABS(t.amount) END) AS monthly_spend_cop
         FROM `@{schema_name}.master_records` t
+        LEFT JOIN `@{schema_name}.dim_categories` rc
+          ON t.category_id = rc.category_id
         WHERE t.is_transfer = FALSE
           AND t.nature IN ('tier1_operational_cost', 'tier2_capital_outlay', 'tier2_refund_offset')
+          -- Refunds booked in a generic income category (e.g. 'Refunds') cannot be attributed to a
+          -- spending category, so they are left out instead of showing up as negative category spend
+          AND NOT (t.nature = 'tier2_refund_offset' AND COALESCE(rc.category_group, '') = 'Income')
         GROUP BY 1, 2
       ),
       -- Calendar spine: every month present in the ledger, so LAG() always compares with the previous calendar month
