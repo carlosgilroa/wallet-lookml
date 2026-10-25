@@ -11,6 +11,6 @@ constant: connection_name {
 }
 
 constant: schema_name {
-  value: "wallet_dw"
+  value: "wallet_lake"
   export: none
 }

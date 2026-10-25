@@ -29,7 +29,7 @@ LookML decouples **SQL business logic** from **visual presentation**. By central
 
 ```mermaid
 flowchart TD
-    subgraph DataLake ["1. Upstream Medallion Lakehouse (wallet_dw)"]
+    subgraph DataLake ["1. Upstream Medallion Lakehouse (wallet_lake)"]
         FCT[("master_records<br/>Multi-Currency Ledger")]
         ACC[("dim_accounts<br/>Checking, Savings, Credit")]
         CAT[("dim_categories<br/>Category Hierarchy & Cardinality")]
