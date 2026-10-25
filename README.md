@@ -86,61 +86,44 @@ explore: transactions {
 Because `transaction_id`, `account_id`, `category_id`, and `label_id` are flagged with `primary_key: yes`, Looker calculates accurate sums regardless of join fanouts.
 
 ### B. Two-Tier Accounting Metric Governance
-The model encodes the Two-Tier Accounting methodology into standardized measures:
-* **Tier 1 (Living Expenses)**: Routine operational burn rate (`nature: "tier1_operational_cost"`).
-* **Tier 2 (Capital Allocation)**: Sinking funds, investments, and long-term liquidity reserves (`nature: "tier2_capital_outlay"`).
+All amounts are in **COP**. The same default metric names exist in every explore that can answer the question, and `scripts/reconcile_metrics.py` proves they return the same numbers:
+
+| Metric | Definition |
+| :--- | :--- |
+| `total_spend_cop` | **Default spend.** Tier 1 operational costs + Tier 2 capital outlays, **net of refunds**, excluding transfers |
+| `gross_spend_cop` / `total_refunds_cop` | Spend before refunds, and the refunds (`nature = tier2_refund_offset`) that offset it |
+| `tier1_operational_spend_cop` | Tier 1 living expenses (`nature = tier1_operational_cost`) |
+| `tier2_capital_spend_cop` | Tier 2 capital outlays net of refunds |
+| `total_income_cop` | **Default income.** Operating income + capital inflows. Refunds are **not** income |
+| `net_cash_flow_cop` | `total_income_cop - total_spend_cop` |
+| `savings_rate_pct` | **Default savings rate.** Net cash flow / total income × 100 (all tiers) |
+| `operating_savings_rate_pct` | Tier 1 savings rate: (operating income − Tier 1 spend) / operating income × 100 |
 
 ```lookml
-measure: tier1_operational_spend_usd {
-  type: sum
-  sql: ABS(${TABLE}.amount) ;;
-  filters: [is_transfer: "no", type: "expense", nature: "tier1_operational_cost"]
-  value_format_name: usd
-}
-
-measure: savings_rate_percentage {
+measure: total_spend_cop {
   type: number
-  sql: (${total_income_usd} - ${total_spend_usd}) / NULLIF(${total_income_usd}, 0) * 100 ;;
-  value_format_name: decimal_2
+  sql: COALESCE(${gross_spend_cop}, 0) - COALESCE(${total_refunds_cop}, 0) ;;
+}
+
+measure: savings_rate_pct {
+  type: number
+  sql: ${net_cash_flow_cop} / NULLIF(${total_income_cop}, 0) * 100.0 ;;
 }
 ```
 
-### C. Gold Marts & Window-Function Persistent Derived Tables (PDTs)
-Pre-aggregated Gold tables (`mart_monthly_pnl.view.lkml` and `mart_expense_summary.view.lkml`) are mapped directly with dynamic multi-period ratio measures (`dynamic_period_savings_rate_pct`), while `views/derived/pdt_category_mom_velocity.view.lkml` uses SQL window functions (`LAG()` and 3-month rolling `AVG() OVER (...)`) to compute month-over-month spend acceleration:
+### C. Explores
+| Explore | Use it for |
+| :--- | :--- |
+| `fct_transactions` | Transaction-level questions: merchants, payees, accounts, categories, day-level dates |
+| `transaction_labels` | Spend by label (trips, projects) through `bridge_transaction_labels`; multi-label transactions count once per label |
+| `dim_accounts` | Balances (`total_current_balance_cop`, converted at the latest FX rate), credit limits |
+| `mart_monthly_pnl` | Monthly / quarterly / yearly income, spend, cashflow and savings rate |
+| `mart_expense_summary` | Monthly spend by tier, category, merchant and labels |
+| `mart_category_budget` | Tier 1 category spend vs P80 budget caps (one row per category-month) |
+| `pdt_category_mom_velocity` | Month-over-month change and 3-month rolling average per category, on a calendar-month spine so gaps compare against 0, not an older month |
 
-```lookml
-datagroup: wallet_daily_datagroup {
-  sql_trigger: SELECT MAX(date) FROM `@{schema_name}.master_records` ;;
-  max_cache_age: "24 hours"
-}
-
-view: pdt_category_mom_velocity {
-  derived_table: {
-    sql:
-      WITH monthly_cat AS (
-        SELECT
-          STRFTIME(CAST(t.date AS DATE), '%Y-%m') AS year_month,
-          t.category_id,
-          COALESCE(c.category_name, t.category_name) AS category_name,
-          COALESCE(c.category_group, t.category_group) AS category_group,
-          SUM(ABS(t.amount)) AS monthly_spend_cop
-        FROM `@{schema_name}.master_records` t
-        LEFT JOIN `@{schema_name}.dim_categories` c
-          ON t.category_id = c.category_id
-        WHERE t.is_transfer = FALSE AND t.type = 'expense'
-        GROUP BY 1, 2, 3, 4
-      )
-      SELECT
-        *,
-        LAG(monthly_spend_cop) OVER (PARTITION BY category_id ORDER BY year_month) AS prev_month_spend_cop,
-        AVG(monthly_spend_cop) OVER (
-          PARTITION BY category_id ORDER BY year_month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
-        ) AS rolling_3m_avg_spend_cop
-      FROM monthly_cat ;;
-    datagroup_trigger: wallet_daily_datagroup
-  }
-}
-```
+### D. Dialect
+The connection is BigQuery, and the local agent runs the same SQL on DuckDB. Derived-table SQL sticks to syntax both engines accept (`CAST(... AS STRING)`, `SUBSTR`, `CONCAT`, window functions).
 
 ---
 
@@ -156,19 +139,22 @@ wallet-lookml/
 │   └── wallet_analytics.model.lkml             # Connection, datagroups, explores, and joins
 ├── views/
 │   ├── base/                                   # Silver layer physical table bindings
-│   │   ├── dim_accounts.view.lkml              # Conformed accounts dimension (25 attributes)
+│   │   ├── bridge_transaction_labels.view.lkml # Transaction ↔ label bridge (1 row per transaction + label)
+│   │   ├── dim_accounts.view.lkml              # Conformed accounts dimension with COP balances
 │   │   ├── dim_categories.view.lkml            # Conformed categories dimension & hierarchy
 │   │   ├── dim_labels.view.lkml                # Conformed labels/tags dimension
 │   │   ├── dim_fx_rates.view.lkml              # Daily multi-currency FX rates
 │   │   └── fct_transactions.view.lkml          # Master transaction ledger (master_records)
 │   └── derived/                                # Gold Marts & Persistent Derived Tables (PDTs)
-│       ├── mart_monthly_pnl.view.lkml          # Monthly P&L Gold mart + dynamic ratios
-│       ├── mart_expense_summary.view.lkml      # Monthly category expense & budget variance mart
+│       ├── mart_category_budget.view.lkml      # Tier 1 category-month spend vs budget caps
+│       ├── mart_monthly_pnl.view.lkml          # Monthly Two-Tier P&L Gold mart
+│       ├── mart_expense_summary.view.lkml      # Monthly category / merchant / label spend mart
 │       └── pdt_category_mom_velocity.view.lkml # Window-function MoM category spend velocity PDT
 ├── tests/
 │   └── data_tests.lkml                         # Native LookML test blocks
 ├── scripts/
-│   └── validate_lookml.py                      # LookML AST parser + DuckDB EXPLAIN validator for PDTs
+│   ├── validate_lookml.py                      # LookML parser + DuckDB EXPLAIN validator, then runs reconciliation
+│   └── reconcile_metrics.py                    # Compiles measures to SQL and checks explores agree
 ├── requirements.txt                            # Dependencies (`lkml`, `duckdb`)
 └── README.md
 ```
@@ -187,24 +173,24 @@ pip install -r requirements.txt
 python scripts/validate_lookml.py
 ```
 
-Output:
+Output (abridged):
 ```text
-Validating 11 LookML file(s) across project...
+Validating 13 LookML file(s) across project...
   [PASS] manifest.lkml
-  [PASS] models\wallet_analytics.model.lkml
-  [PASS] tests\data_tests.lkml
-  [PASS] views\base\dim_accounts.view.lkml
-  [PASS] views\base\dim_categories.view.lkml
-  [PASS] views\base\dim_fx_rates.view.lkml
-  [PASS] views\base\dim_labels.view.lkml
-  [PASS] views\base\fct_transactions.view.lkml
-  [PASS] views\derived\mart_expense_summary.view.lkml
-  [PASS] views\derived\mart_monthly_pnl.view.lkml
-  [INFO] DuckDB EXPLAIN verified for derived_table in view 'pdt_category_mom_velocity'
-  [PASS] views\derived\pdt_category_mom_velocity.view.lkml
-------------------------------------------------------------
-All 11 LookML files parsed and validated successfully!
+  ...
+  [EXPLAIN PASS] Derived table 'pdt_category_mom_velocity' compiled cleanly against DuckDB.
+All 13 LookML files parsed and validated successfully!
+
+Reconciling LookML metrics across explores...
+  [PASS] fct_transactions.total_spend_cop = mart_monthly_pnl.total_spend_cop (10 months)
+  [PASS] fct_transactions.total_income_cop = mart_monthly_pnl.total_income_cop (10 months)
+  ...
+  [PASS] pdt_category_mom_velocity compares consecutive calendar months only
+  [PASS] budget_status is consistent within every category-month
+All metrics reconcile across explores.
 ```
+
+Reconciliation needs the local lakehouse (`WALLET_DATA_DIR`, default `C:/projects/wallet/data`) and is skipped when it is absent, as in CI.
 
 ---
 

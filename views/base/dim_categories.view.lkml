@@ -35,7 +35,7 @@ view: dim_categories {
 
   dimension: cardinality {
     type: string
-    description: "BudgetBakers spending priority classification: must, need, or want"
+    description: "BudgetBakers spending priority classification: must, need, want, or none (unclassified)"
     sql: ${TABLE}.cardinality ;;
   }
 

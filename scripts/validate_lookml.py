@@ -34,8 +34,10 @@ def register_duckdb_lakehouse(data_dir: Path):
         "dim_categories": data_dir / "silver" / "dim_categories.parquet",
         "dim_labels": data_dir / "silver" / "dim_labels.parquet",
         "fx_rates": data_dir / "silver" / "fx_rates.parquet",
+        "bridge_transaction_labels": data_dir / "silver" / "bridge_transaction_labels.parquet",
         "mart_monthly_pnl": data_dir / "gold" / "mart_monthly_pnl.parquet",
         "mart_expense_summary": data_dir / "gold" / "mart_expense_summary.parquet",
+        "mart_category_budget": data_dir / "gold" / "mart_category_budget.parquet",
     }
     registered = []
     for name, path in table_map.items():
@@ -98,12 +100,18 @@ def main():
             errors += 1
 
     print("\n------------------------------------------------------------")
-    if errors == 0:
-        print(f"All {len(lkml_files)} LookML files parsed and validated successfully!")
-        return 0
-    else:
+    if errors:
         print(f"LookML Validation failed with {errors} error(s).")
         return 1
+    print(f"All {len(lkml_files)} LookML files parsed and validated successfully!\n")
+
+    # Cross-explore metric reconciliation needs the local lakehouse; it is skipped when the data is absent (e.g. CI)
+    if duck_conn is None:
+        print("Skipping metric reconciliation: duckdb is not installed.")
+        return 0
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import reconcile_metrics
+    return reconcile_metrics.main()
 
 
 if __name__ == "__main__":

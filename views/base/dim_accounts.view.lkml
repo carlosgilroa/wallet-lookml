@@ -60,14 +60,21 @@ view: dim_accounts {
 
   dimension: current_balance {
     type: number
-    description: "Current balance of the account in its native currency"
+    description: "Current balance in the account's own currency (see Currency). Do not add across currencies; use Current Balance COP."
     sql: ${TABLE}.current_balance ;;
     value_format_name: decimal_2
   }
 
+  dimension: current_balance_cop {
+    type: number
+    description: "Current balance converted to COP with the latest available FX rate (equal to current_balance for COP accounts)"
+    sql: ${TABLE}.current_balance_cop ;;
+    value_format_name: decimal_0
+  }
+
   dimension: credit_limit {
     type: number
-    description: "Total credit limit for credit card accounts"
+    description: "Total credit limit for credit card accounts (all credit cards are COP-denominated)"
     sql: ${TABLE}.credit_limit ;;
     value_format_name: decimal_2
   }
@@ -105,17 +112,17 @@ view: dim_accounts {
     drill_fields: [account_id, account_name, account_type, currency, current_balance]
   }
 
-  measure: total_current_balance {
+  measure: total_current_balance_cop {
     type: sum
-    description: "Sum of current balances across active accounts"
-    sql: ${current_balance} ;;
+    description: "Sum of current balances across active accounts in COP (foreign-currency accounts converted at the latest FX rate). Loan and credit card balances are included with their sign."
+    sql: ${current_balance_cop} ;;
     filters: [is_active: "yes"]
-    value_format_name: decimal_2
+    value_format_name: decimal_0
   }
 
   measure: total_credit_limit {
     type: sum
-    description: "Total credit limit across active credit cards"
+    description: "Total credit limit across active credit cards in COP"
     sql: ${credit_limit} ;;
     filters: [is_active: "yes"]
     value_format_name: decimal_2
@@ -123,7 +130,7 @@ view: dim_accounts {
 
   measure: total_available_credit {
     type: sum
-    description: "Total available credit remaining across active credit cards"
+    description: "Total available credit remaining across active credit cards in COP"
     sql: ${available_credit} ;;
     filters: [is_active: "yes"]
     value_format_name: decimal_2
