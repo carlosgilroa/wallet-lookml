@@ -131,6 +131,7 @@ view: fct_transactions {
   dimension: note {
     type: string
     description: "Free-text note entered on the transaction"
+    suggestions: no
     sql: ${TABLE}.note ;;
   }
 
